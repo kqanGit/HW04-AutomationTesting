@@ -48,7 +48,9 @@ test.describe('FR-01 Đăng ký tài khoản', () => {
   for (const c of cases) {
     test(`${c.id} – ${c.title}`, async ({ page, request }, testInfo) => {
       testInfo.annotations.push({ type: 'Trace', description: c.trace });
-      const errorBox = page.locator('.bg-red-100');
+      // Error box = the div right after the form heading; it is rendered only when there is an error.
+      // Located by structure, not by the Tailwind class bg-red-100, which is styling and may change.
+      const errorBox = page.locator('h2:has-text("Đăng Ký Tài Khoản") + div');
 
       switch (c.expected) {
         case 'success': {
@@ -84,6 +86,8 @@ test.describe('FR-01 Đăng ký tài khoản', () => {
           await expect(errorBox).toBeVisible();
           // The password in this row is valid by the spec. A "password too weak" message means the form
           // rejected the row for the wrong reason, so the email rule was never checked.
+          // Tester's decision: the spec does not give message wordings. This is a documented negative guard
+          // that detects a masked rejection; it does not assert the expected email message.
           await expect(errorBox).not.toContainText(WEAK_PASSWORD_TEXT);
           await expect(page).toHaveURL(/\/register$/);
           expect(await newUsers(request), 'no account created').toHaveLength(0);
