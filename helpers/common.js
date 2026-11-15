@@ -26,6 +26,12 @@ async function apiToken(request, account = ADMIN) {
   return body.token;
 }
 
+/** HTTP status of POST /api/login for the given credentials (200 = login works). The spec file asserts on it. */
+async function loginStatus(request, email, password) {
+  const res = await request.post(`${API}/api/login`, { data: { email, password } });
+  return res.status();
+}
+
 async function listUsers(request) {
   const token = await apiToken(request);
   const res = await request.get(`${API}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
@@ -61,6 +67,13 @@ async function deleteTestCoupons(request) {
 /** Input that follows a <label> with the given text (EShop labels are not linked to inputs). */
 function fieldByLabel(page, label) {
   return page.locator(`label:has-text("${label}") + input`).first();
+}
+
+/** FR-01: open the home page, then the Register page through the header link "Đăng ký". */
+async function openRegister(page) {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Đăng ký', exact: true }).click();
+  await page.getByRole('heading', { name: 'Đăng Ký Tài Khoản' }).waitFor();
 }
 
 /** Product card on the home page. */
@@ -104,8 +117,8 @@ function rowWith(page, text) {
 
 module.exports = {
   STUDENT_ID, WEB, ADMIN_URL, API, ADMIN, USER, SEED,
-  tagRunBy, apiToken,
+  tagRunBy, apiToken, loginStatus,
   listUsers, deleteTestUsers, listCoupons, deleteTestCoupons,
-  fieldByLabel, productCard, addFromHome, openCart, toNumber,
+  fieldByLabel, openRegister, productCard, addFromHome, openCart, toNumber,
   openAdminTab, rowWith,
 };

@@ -1,0 +1,124 @@
+[
+  {
+    "id": "TC-FR01-DT-01",
+    "title": "Registration succeeds when all fields are valid",
+    "trace": "FR-01 · P1, P4, P12, P21",
+    "name": "Nguyen Van A",
+    "email": "qa01@test.com",
+    "password": "Abcdef1!",
+    "confirmPassword": "Abcdef1!",
+    "expected": "success"
+  },
+  {
+    "id": "TC-FR01-DT-02",
+    "title": "Registration is rejected when Họ Tên is empty",
+    "trace": "FR-01 \"phải cung cấp: Họ Tên\" · P2",
+    "name": "",
+    "email": "qa02@test.com",
+    "password": "Abcdef1!",
+    "confirmPassword": "Abcdef1!",
+    "expected": "missing-field",
+    "emptyField": "Họ Tên"
+  },
+  {
+    "id": "TC-FR01-DT-04",
+    "title": "Registration is rejected when Email is empty",
+    "trace": "FR-01 \"phải cung cấp: Email\" · P5",
+    "name": "Nguyen Van A",
+    "email": "",
+    "password": "Abcdef1!",
+    "confirmPassword": "Abcdef1!",
+    "expected": "missing-field",
+    "emptyField": "Email"
+  },
+  {
+    "id": "TC-FR01-DT-05",
+    "title": "Registration is rejected when Email has no @",
+    "trace": "FR-01 \"định dạng hợp lệ\" · P6",
+    "name": "Nguyen Van A",
+    "email": "qa05test.com",
+    "password": "Abcdef1!",
+    "confirmPassword": "Abcdef1!",
+    "expected": "rejected-email"
+  },
+  {
+    "id": "TC-FR01-DT-09",
+    "title": "Registration is rejected when Email is already registered",
+    "trace": "FR-01 \"là duy nhất trong hệ thống\" · P10",
+    "name": "Nguyen Van A",
+    "email": "test@eshop.com",
+    "password": "Abcdef1!",
+    "confirmPassword": "Abcdef1!",
+    "expected": "rejected-email",
+    "existingPassword": "Test1234!"
+  },
+  {
+    "id": "TC-FR01-DT-11",
+    "title": "Registration is rejected when Mật khẩu has 7 characters",
+    "trace": "FR-01 \"Tối thiểu 8 ký tự\" · P13",
+    "name": "Nguyen Van A",
+    "email": "qa11@test.com",
+    "password": "Abc1!xy",
+    "confirmPassword": "Abc1!xy",
+    "expected": "weak-password"
+  },
+  {
+    "id": "TC-FR01-DT-12",
+    "title": "Registration is rejected when Mật khẩu has no uppercase letter",
+    "trace": "FR-01 \"ít nhất 1 chữ hoa\" · P14",
+    "name": "Nguyen Van A",
+    "email": "qa12@test.com",
+    "password": "abcdef1!",
+    "confirmPassword": "abcdef1!",
+    "expected": "weak-password"
+  },
+  {
+    "id": "TC-FR01-DT-13",
+    "title": "Registration is rejected when Mật khẩu has no lowercase letter",
+    "trace": "FR-01 \"1 chữ thường\" · P15",
+    "name": "Nguyen Van A",
+    "email": "qa13@test.com",
+    "password": "ABCDEF1!",
+    "confirmPassword": "ABCDEF1!",
+    "expected": "weak-password"
+  },
+  {
+    "id": "TC-FR01-DT-14",
+    "title": "Registration is rejected when Mật khẩu has no digit",
+    "trace": "FR-01 \"1 chữ số\" · P16",
+    "name": "Nguyen Van A",
+    "email": "qa14@test.com",
+    "password": "Abcdefg!",
+    "confirmPassword": "Abcdefg!",
+    "expected": "weak-password"
+  },
+  {
+    "id": "TC-FR01-DT-15",
+    "title": "Registration is rejected when Mật khẩu has no special character",
+    "trace": "FR-01 \"1 ký tự đặc biệt\" · P17",
+    "name": "Nguyen Van A",
+    "email": "qa15@test.com",
+    "password": "Abcdefg1",
+    "confirmPassword": "Abcdefg1",
+    "expected": "weak-password"
+  },
+  {
+    "id": "TC-FR01-DT-17",
+    "title": "Registration is rejected when Mật khẩu is empty",
+    "trace": "FR-01 \"phải cung cấp: Mật khẩu\" · P19",
+    "name": "Nguyen Van A",
+    "email": "qa17@test.com",
+    "password": "",
+    "confirmPassword": "",
+    "expected": "missing-field",
+    "emptyField": "Mật khẩu"
+  },
+  {
+    "id": "TC-FR01-DT-21",
+    "title": "Register form contains a Xác nhận mật khẩu field",
+    "trace": "FR-01 \"Phải có trường Xác nhận mật khẩu\" · precondition of P21–P23",
+    "expected": "has-confirm-field",
+    "confirmLabel": "Xác nhận mật khẩu",
+    "expectedCount": 1
+  }
+]
