@@ -1,0 +1,304 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: FR-17.spec.js >> FR-17 Quản lý Mã Giảm Giá >> TC-FR17-DT-15 – Coupon is rejected when max_uses_per_user is empty
+- Location: tests\FR-17.spec.js:128:5
+
+# Error details
+
+```
+Error: coupons saved besides the 4 seed coupons
+
+expect(received).toEqual(expected) // deep equality
+
+- Expected  - 1
++ Received  + 3
+
+- Array []
++ Array [
++   "T17DT15",
++ ]
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - heading "EShop Admin" [level=1] [ref=e5]
+    - list [ref=e6]:
+      - listitem [ref=e7] [cursor=pointer]: Dashboard
+      - listitem [ref=e8] [cursor=pointer]: Danh mục
+      - listitem [ref=e9] [cursor=pointer]: Sản phẩm
+      - listitem [ref=e10] [cursor=pointer]: Mã Giảm Giá
+      - listitem [ref=e11] [cursor=pointer]: Đơn hàng
+      - listitem [ref=e12] [cursor=pointer]: Người dùng
+      - listitem [ref=e13] [cursor=pointer]: Đăng xuất
+  - generic [ref=e15]:
+    - heading "Quản lý Mã Giảm Giá" [level=2] [ref=e16]
+    - generic [ref=e17]:
+      - heading "Tạo mã giảm giá mới" [level=3] [ref=e18]
+      - generic [ref=e19]:
+        - 'textbox "Mã coupon (VD: SAVE10)" [ref=e20]'
+        - combobox [ref=e21]:
+          - option "Phần trăm (%)" [selected]
+          - option "Số tiền cố định (₫)"
+        - 'spinbutton "Giá trị % (VD: 10)" [ref=e22]'
+        - spinbutton "Đơn tối thiểu (₫)" [ref=e23]: "0"
+        - textbox [ref=e24]:
+          - /placeholder: Ngày hết hạn
+        - spinbutton "Số lần dùng tối đa/người" [ref=e25]: "1"
+      - button "Tạo mã" [active] [ref=e26] [cursor=pointer]
+    - table [ref=e27]:
+      - rowgroup [ref=e28]:
+        - row [ref=e29]:
+          - columnheader "Mã" [ref=e30]
+          - columnheader "Loại" [ref=e31]
+          - columnheader "Giá trị" [ref=e32]
+          - columnheader "Đơn tối thiểu" [ref=e33]
+          - columnheader "Hết hạn" [ref=e34]
+          - columnheader "Giới hạn/người" [ref=e35]
+          - columnheader "Hành động" [ref=e36]
+      - rowgroup [ref=e37]:
+        - row [ref=e38]:
+          - cell "SAVE10" [ref=e39]
+          - cell "Phần trăm" [ref=e40]
+          - cell "10%" [ref=e41]
+          - cell "300.000 ₫" [ref=e42]
+          - cell "2099-12-31" [ref=e43]
+          - cell "1 lần" [ref=e44]
+          - cell [ref=e45]:
+            - button "Xóa" [ref=e46] [cursor=pointer]
+        - row [ref=e47]:
+          - cell "BIGBUY" [ref=e48]
+          - cell "Cố định" [ref=e49]
+          - cell "50.000 ₫" [ref=e50]
+          - cell "500.000 ₫" [ref=e51]
+          - cell "2099-12-31" [ref=e52]
+          - cell "1 lần" [ref=e53]
+          - cell [ref=e54]:
+            - button "Xóa" [ref=e55] [cursor=pointer]
+        - row [ref=e56]:
+          - cell "VIP100" [ref=e57]
+          - cell "Cố định" [ref=e58]
+          - cell "100.000 ₫" [ref=e59]
+          - cell "300.000 ₫" [ref=e60]
+          - cell "2099-12-31" [ref=e61]
+          - cell "2 lần" [ref=e62]
+          - cell [ref=e63]:
+            - button "Xóa" [ref=e64] [cursor=pointer]
+        - row [ref=e65]:
+          - cell "EXPIRED" [ref=e66]
+          - cell "Phần trăm" [ref=e67]
+          - cell "20%" [ref=e68]
+          - cell "100.000 ₫" [ref=e69]
+          - cell "Hết hạn" [ref=e70]
+          - cell "1 lần" [ref=e71]
+          - cell [ref=e72]:
+            - button "Xóa" [ref=e73] [cursor=pointer]
+        - row [ref=e74]:
+          - cell "T17DT15" [ref=e75]
+          - cell "Phần trăm" [ref=e76]
+          - cell "10%" [ref=e77]
+          - cell "0 ₫" [ref=e78]
+          - cell "2099-12-31" [ref=e79]
+          - cell "1 lần" [ref=e80]
+          - cell [ref=e81]:
+            - button "Xóa" [ref=e82] [cursor=pointer]
+```
+
+# Test source
+
+```ts
+  4   | //
+  5   | // Assertion patterns planned (filled in step 5):
+  6   | //   1. Data state – coupons read back through GET /api/coupons
+  7   | //   2. Count      – exactly one table row for a code / no row after delete
+  8   | //   3. Content    – values in the coupon's table row (money compared as numbers)
+  9   | //   4. Visibility – DT-17: the "Mã Giảm Giá" tab is not shown to a customer
+  10  | const { test, expect } = require('@playwright/test');
+  11  | const cases = require('../data/FR-17.json');
+  12  | const {
+  13  |   tagRunBy, deleteTestCoupons, openAdminTab, listCoupons, toNumber, SEED, ADMIN_URL, USER,
+  14  | } = require('../helpers/common');
+  15  | 
+  16  | // ---------- locators (step 2, accepted by the tester) ----------
+  17  | const couponForm = (page) =>
+  18  |   page.locator('form', { has: page.getByRole('heading', { name: 'Tạo mã giảm giá mới' }) });
+  19  | // The discount placeholder changes with the type: "Giá trị % (VD: 10)" / "Số tiền (VD: 50000)".
+  20  | const discountInput = (form) => form.getByPlaceholder(/^(Giá trị %|Số tiền) \(VD/);
+  21  | // Row whose first cell is exactly the code (hasText would also match SAVE10 for SAVE1).
+  22  | const couponRow = (page, code) =>
+  23  |   page.getByRole('row').filter({ has: page.getByRole('cell', { name: code, exact: true }) });
+  24  | 
+  25  | const isCouponPost = (r) => r.url().endsWith('/api/admin/coupons') && r.request().method() === 'POST';
+  26  | const isCouponDelete = (r) => /\/api\/admin\/coupons\/\d+$/.test(r.url()) && r.request().method() === 'DELETE';
+  27  | 
+  28  | // ---------- steps ----------
+  29  | 
+  30  | /** Fill "Tạo mã giảm giá mới" with the row's values. "" leaves the field empty (prefilled boxes are cleared). */
+  31  | async function fillCoupon(page, c) {
+  32  |   const form = couponForm(page);
+  33  |   await form.getByPlaceholder('Mã coupon (VD: SAVE10)').fill(String(c.code));
+  34  |   await form.getByRole('combobox').selectOption(c.type); // before the discount: it changes the placeholder
+  35  |   await discountInput(form).fill(String(c.discount_value));
+  36  |   await form.getByPlaceholder('Đơn tối thiểu (₫)').fill(String(c.min_order_amount));
+  37  |   await form.getByPlaceholder('Ngày hết hạn').fill(String(c.expired_at));
+  38  |   await form.getByPlaceholder('Số lần dùng tối đa/người').fill(String(c.max_uses_per_user));
+  39  | }
+  40  | 
+  41  | /**
+  42  |  * Click "Tạo mã" and wait until the page has reacted: either the browser blocks the submit
+  43  |  * (a field is :invalid, no request is sent) or the POST to the backend has answered.
+  44  |  * Returns what happened; the checks decide whether it is right.
+  45  |  */
+  46  | async function submitCoupon(page) {
+  47  |   const form = couponForm(page);
+  48  |   // Read validity BEFORE the click: after a successful submit the form resets and its empty
+  49  |   // required fields become :invalid, which would look like a blocked submit.
+  50  |   const invalidFields = await form.locator(':invalid').count();
+  51  |   const post = page.waitForResponse(isCouponPost, { timeout: 5_000 }).catch(() => null);
+  52  |   await form.getByRole('button', { name: 'Tạo mã' }).click();
+  53  |   if (invalidFields > 0) return { blocked: true, status: null };
+  54  |   const res = await post;
+  55  |   if (!res) throw new Error('Tạo mã: no field was invalid and no POST /api/admin/coupons was sent within 5 s');
+  56  |   return { blocked: false, status: res.status() };
+  57  | }
+  58  | 
+  59  | /** Click "Xóa" on the row of the code and wait for the DELETE to answer. */
+  60  | async function deleteCoupon(page, code) {
+  61  |   const del = page.waitForResponse(isCouponDelete);
+  62  |   await couponRow(page, code).getByRole('button', { name: 'Xóa' }).click();
+  63  |   return (await del).status();
+  64  | }
+  65  | 
+  66  | // ---------- one check per "expected" type (step 5) ----------
+  67  | // Table cells of a coupon row: 0 Mã · 1 Loại · 2 Giá trị · 3 Đơn tối thiểu · 4 Hết hạn · 5 Giới hạn/người · 6 Hành động.
+  68  | // Only numbers are compared on screen (digits only: thousands separators differ per browser);
+  69  | // the spec does not define how type and date are displayed, so those are checked in the saved data.
+  70  | const checks = {
+  71  |   // Spec: "Admin có thể Thêm / Xem … mã giảm giá"; every rule of "Các trường bắt buộc" is met.
+  72  |   created: async (page, c, ctx) => {
+  73  |     const all = await listCoupons(ctx.request);
+  74  |     const saved = all.filter((x) => x.code === c.code);
+  75  |     // Spec: Thêm + "`code` (duy nhất)" – the coupon is saved exactly once.
+  76  |     expect(saved, `coupons saved with code "${c.code}"`).toHaveLength(1);
+  77  |     // Spec: Thêm – the 4 seed coupons are untouched, only one coupon is added.
+  78  |     expect.soft(all, 'number of coupons (4 seed + 1)').toHaveLength(SEED.maxCouponId + 1);
+  79  |     // Spec: Các trường bắt buộc – every field is stored with the value entered.
+  80  |     const s = saved[0];
+  81  |     expect.soft(s.type, 'saved type').toBe(c.type);
+  82  |     expect.soft(Number(s.discount_value), 'saved discount_value').toBe(c.discount_value);
+  83  |     expect.soft(Number(s.min_order_amount), 'saved min_order_amount').toBe(c.min_order_amount);
+  84  |     expect.soft(String(s.expired_at).slice(0, 10), 'saved expired_at').toBe(c.expired_at);
+  85  |     expect.soft(Number(s.max_uses_per_user), 'saved max_uses_per_user').toBe(c.max_uses_per_user);
+  86  | 
+  87  |     // Spec: Xem – the new coupon appears once in the list.
+  88  |     const row = couponRow(page, c.code);
+  89  |     await expect(row, `table rows for "${c.code}"`).toHaveCount(1);
+  90  |     const cells = row.locator('td');
+  91  |     // Spec: Xem – the listed values are the entered values.
+  92  |     expect.soft(toNumber(await cells.nth(2).innerText()), 'Giá trị shown').toBe(c.discount_value);
+  93  |     expect.soft(toNumber(await cells.nth(3).innerText()), 'Đơn tối thiểu shown').toBe(c.min_order_amount);
+  94  |     expect.soft(toNumber(await cells.nth(5).innerText()), 'Giới hạn/người shown').toBe(c.max_uses_per_user);
+  95  |   },
+  96  | 
+  97  |   // Spec: "Các trường bắt buộc: …" (the broken rule is named in c.trace) – an invalid coupon is not saved.
+  98  |   // submitCoupon has already waited for the page to react (browser block or backend answer),
+  99  |   // so the saved data is final when it is read here.
+  100 |   rejected: async (page, c, ctx) => {
+  101 |     const all = await listCoupons(ctx.request);
+  102 |     const added = all.filter((x) => x.id > SEED.maxCouponId).map((x) => x.code); // the diff quotes them, so "   " stays visible
+  103 |     // Spec: Các trường bắt buộc – nothing besides the 4 seed coupons exists (also catches a 2nd SAVE10).
+> 104 |     expect(added, 'coupons saved besides the 4 seed coupons').toEqual([]);
+      |                                                               ^ Error: coupons saved besides the 4 seed coupons
+  105 |   },
+  106 | 
+  107 |   // Spec: "Admin có thể … Xóa mã giảm giá".
+  108 |   deleted: async (page, c, ctx) => {
+  109 |     const all = await listCoupons(ctx.request);
+  110 |     // Spec: Xóa – the coupon is no longer saved.
+  111 |     expect(all.filter((x) => x.code === c.code), `coupons saved with code "${c.code}"`).toHaveLength(0);
+  112 |     // Spec: Xóa removes only that coupon – the 4 seed coupons are untouched.
+  113 |     expect.soft(all, 'number of coupons (4 seed)').toHaveLength(SEED.maxCouponId);
+  114 |     // Spec: Xem – the deleted coupon is no longer listed.
+  115 |     await expect(couponRow(page, c.code), `table rows for "${c.code}"`).toHaveCount(0);
+  116 |   },
+  117 | };
+  118 | 
+  119 | test.describe('FR-17 Quản lý Mã Giảm Giá', () => {
+  120 |   test.beforeEach(async ({ page, request }, testInfo) => {
+  121 |     tagRunBy(testInfo);
+  122 |     await deleteTestCoupons(request); // start from the 4 seed coupons (id 1–4)
+  123 |     await openAdminTab(page, 'Mã Giảm Giá');
+  124 |     await expect(page.getByRole('heading', { name: 'Quản lý Mã Giảm Giá' })).toBeVisible();
+  125 |   });
+  126 | 
+  127 |   for (const c of cases) {
+  128 |     test(`${c.id} – ${c.title}`, async ({ page, request }, testInfo) => {
+  129 |       testInfo.annotations.push({ type: 'Trace', description: c.trace });
+  130 |       const check = checks[c.expected];
+  131 |       if (!check) throw new Error(`Unknown expected value "${c.expected}" in ${c.id}`);
+  132 | 
+  133 |       // Every alert is recorded and accepted; registered before any click.
+  134 |       const ctx = { dialogs: [], submits: [], deletes: [], request };
+  135 |       page.on('dialog', async (d) => {
+  136 |         ctx.dialogs.push(d.message());
+  137 |         await d.accept();
+  138 |       });
+  139 | 
+  140 |       for (const step of c.steps) {
+  141 |         if (step === 'create') {
+  142 |           await fillCoupon(page, c);
+  143 |           ctx.submits.push(await submitCoupon(page));
+  144 |         } else if (step === 'delete') {
+  145 |           ctx.deletes.push(await deleteCoupon(page, c.code));
+  146 |         } else {
+  147 |           throw new Error(`Unknown step "${step}" in ${c.id}`);
+  148 |         }
+  149 |       }
+  150 |       testInfo.annotations.push({ type: 'Steps result', description: JSON.stringify({ submits: ctx.submits, deletes: ctx.deletes, dialogs: ctx.dialogs }) });
+  151 | 
+  152 |       await check(page, c, ctx);
+  153 |     });
+  154 |   }
+  155 | });
+  156 | 
+  157 | test.describe('FR-17 Quản lý Mã Giảm Giá – non-admin', () => {
+  158 |   test.beforeEach(async ({ request }, testInfo) => {
+  159 |     tagRunBy(testInfo);
+  160 |     await deleteTestCoupons(request);
+  161 |   });
+  162 | 
+  163 |   test('TC-FR17-DT-17 – A non-Admin user cannot manage coupons', async ({ page }, testInfo) => {
+  164 |     testInfo.annotations.push({ type: 'Trace', description: 'FR-17 "Admin có thể Thêm / Xem / Xóa mã giảm giá"' });
+  165 |     const dialogs = [];
+  166 |     page.on('dialog', async (d) => {
+  167 |       dialogs.push(d.message());
+  168 |       await d.accept();
+  169 |     });
+  170 | 
+  171 |     await page.goto(ADMIN_URL);
+  172 |     await page.getByPlaceholder('Email').fill(USER.email);
+  173 |     await page.getByPlaceholder('Password').fill(USER.password);
+  174 |     const loginAnswer = page.waitForResponse((r) => r.url().endsWith('/api/login'));
+  175 |     await page.getByRole('button', { name: 'Login' }).click();
+  176 |     await loginAnswer;
+  177 |     // The page has reacted when an alert has fired or the admin layout is shown (whichever happens).
+  178 |     const adminHeading = page.getByRole('heading', { name: 'EShop Admin' });
+  179 |     await expect.poll(async () => dialogs.length + (await adminHeading.count()), { message: 'page reacted to the login' }).toBeGreaterThan(0);
+  180 |     testInfo.annotations.push({ type: 'Steps result', description: JSON.stringify({ dialogs }) });
+  181 | 
+  182 |     // Spec: only "Admin có thể Thêm / Xem / Xóa mã giảm giá" – a customer reaches neither the tab nor the coupon page.
+  183 |     // (The alert wording is not in the spec and is not asserted.)
+  184 |     await expect(page.locator('li', { hasText: 'Mã Giảm Giá' }), '"Mã Giảm Giá" tab for a customer').toHaveCount(0);
+  185 |     await expect(page.getByRole('heading', { name: 'Quản lý Mã Giảm Giá' }), 'coupon page for a customer').toHaveCount(0);
+  186 |   });
+  187 | });
+  188 | 
+```
