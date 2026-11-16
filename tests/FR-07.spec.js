@@ -1,4 +1,4 @@
-// FR-07 Giỏ hàng (/cart) – data-driven, 12 test cases (11 from HW02 + AT-01 added from the spec).
+// FR-07 Giỏ hàng (/cart) – data-driven, 13 test cases (11 from HW02 + AT-01, AT-02 added from the spec).
 // Data: data/FR-07.json. Products, quantities and expected results are those of the HW02 test cases
 // with the same ID (HW2/features/FR-07-shopping-cart/test-cases.md); "expected" follows the spec, not EShop.
 //
@@ -90,6 +90,18 @@ async function expectEmptyView(page) {
 // ---------- one check per "expected" type ----------
 // Spec: one row per product; same product again raises the quantity; columns Đơn giá, Số lượng, Thành tiền
 // (Thành tiền = Đơn giá × Số lượng and the grand total = sum of Thành tiền are derived, not quoted).
+
+/**
+ * Expected grand total of a data row: a literal "total", or "totalFrom": "lineTotals" to add up the
+ * rows' lineTotal values (so no new money figure has to be written in the data file).
+ * Anything else is a data error and fails the test instead of checking nothing.
+ */
+function expectedTotal(c) {
+  if (typeof c.total === 'number') return c.total;
+  if (c.totalFrom === 'lineTotals') return c.rows.reduce((sum, r) => sum + r.lineTotal, 0);
+  throw new Error(`${c.id}: give "total" (number) or "totalFrom": "lineTotals"`);
+}
+
 async function rowsAndTotals(page, c) {
   await expect.soft(cartRows(page), 'number of cart rows').toHaveCount(c.rows.length);
   for (const r of c.rows) {
@@ -101,7 +113,7 @@ async function rowsAndTotals(page, c) {
     expect.soft(await quantityOf(row), `quantity of "${r.name}"`).toBe(r.quantity);
     expect.soft(toNumber(await cells.nth(3).innerText()), `line total of "${r.name}"`).toBe(r.lineTotal);
   }
-  await expectAmount(totalValue(page), c.total, 'grand total');
+  await expectAmount(totalValue(page), expectedTotal(c), 'grand total');
 }
 
 const checks = {

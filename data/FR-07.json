@@ -129,5 +129,17 @@
     "columns": ["Sản phẩm", "Đơn giá", "Số lượng", "Thành tiền", "Thao tác"],
     "totalLabel": "Tổng cộng",
     "forbiddenTotalLabel": "Tổng tạm tính"
+  },
+  {
+    "id": "TC-FR07-AT-02",
+    "title": "Two different products, one click each: two rows, correct grand total",
+    "trace": "FR-07 \"Hiển thị danh sách sản phẩm với các cột: Sản phẩm, Đơn giá, Số lượng (có nút +/- để chỉnh), Thành tiền, Thao tác\" · grand total = sum of Thành tiền (derived, not quoted) · new case, not in HW02",
+    "add": ["Tai nghe AirPods Pro 2", "Bàn phím cơ Keychron Q1"],
+    "expected": "rows-and-totals",
+    "rows": [
+      { "name": "Tai nghe AirPods Pro 2", "unitPrice": 6000000, "quantity": 1, "lineTotal": 6000000 },
+      { "name": "Bàn phím cơ Keychron Q1", "unitPrice": 4000000, "quantity": 1, "lineTotal": 4000000 }
+    ],
+    "totalFrom": "lineTotals"
   }
 ]
