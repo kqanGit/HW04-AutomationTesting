@@ -1,5 +1,6 @@
 // FR-07 Giỏ hàng (/cart) – data-driven, 12 test cases (11 from HW02 + AT-01 added from the spec).
-// Data: data/FR-07.json. "expected" follows the spec (README FR-07), not the current EShop behaviour.
+// Data: data/FR-07.json. Products, quantities and expected results are those of the HW02 test cases
+// with the same ID (HW2/features/FR-07-shopping-cart/test-cases.md); "expected" follows the spec, not EShop.
 //
 // Assertion patterns used in this file:
 //   1. Count        – expect(rows).toHaveCount(n)
@@ -20,6 +21,17 @@ const totalValue = (page) => page.locator('table + div span').first();
 // The spec asks for "a clear message" without fixing the wording: any text saying the cart is empty ("trống").
 const emptyMessage = (page) => page.getByText(/giỏ hàng.*trống/i);
 const removeButton = (row) => row.getByRole('button', { name: /xóa/i });
+const quantityButton = (row, sign) =>
+  row.getByRole('button', { name: sign === '+' ? /^\s*\+\s*$/ : /^\s*[-−–]\s*$/ });
+
+const softExpect = expect.configure({ soft: true });
+
+/** Soft check that the number shown in a locator becomes `value` (retries; null while the element is absent). */
+async function expectAmount(locator, value, message) {
+  await softExpect
+    .poll(async () => ((await locator.count()) ? toNumber(await locator.first().innerText()) : null), { message })
+    .toBe(value);
+}
 
 /** Quantity of a cart row (3rd column), whether it is plain text or an input next to +/- buttons. */
 async function quantityOf(row) {
@@ -58,62 +70,91 @@ function watchDialog(page, action) {
   return seen;
 }
 
+/** Click Xóa on the row of `name`, answer any native dialog with `action`; true if a confirmation was shown. */
+async function clickRemove(page, name, action) {
+  const dialog = watchDialog(page, action);
+  await removeButton(rowsFor(page, name).first()).click();
+  // A confirmation may also be an in-page modal instead of a native confirm().
+  const modalShown = (await page.getByRole('dialog').count()) > 0;
+  return dialog.shown || modalShown;
+}
+
+/** Spec: an empty cart shows no product table, an illustration and a clear message. */
+async function expectEmptyView(page) {
+  await expect.soft(emptyMessage(page), 'empty-cart message').toBeVisible();
+  await expect.soft(page.locator('main table'), 'no product table').toHaveCount(0);
+  const illustrations = await page.locator('main img, main svg').count();
+  expect.soft(illustrations, 'illustration (img or svg) in the empty-cart view').toBeGreaterThan(0);
+}
+
 // ---------- one check per "expected" type ----------
+// Spec: one row per product; same product again raises the quantity; columns Đơn giá, Số lượng, Thành tiền
+// (Thành tiền = Đơn giá × Số lượng and the grand total = sum of Thành tiền are derived, not quoted).
+async function rowsAndTotals(page, c) {
+  await expect.soft(cartRows(page), 'number of cart rows').toHaveCount(c.rows.length);
+  for (const r of c.rows) {
+    const row = rowsFor(page, r.name);
+    await expect.soft(row, `exactly one row for "${r.name}"`).toHaveCount(1);
+    if ((await row.count()) !== 1) continue; // a duplicated row has no single quantity to read
+    const cells = row.locator('td');
+    expect.soft(toNumber(await cells.nth(1).innerText()), `unit price of "${r.name}"`).toBe(r.unitPrice);
+    expect.soft(await quantityOf(row), `quantity of "${r.name}"`).toBe(r.quantity);
+    expect.soft(toNumber(await cells.nth(3).innerText()), `line total of "${r.name}"`).toBe(r.lineTotal);
+  }
+  await expectAmount(totalValue(page), c.total, 'grand total');
+}
+
 const checks = {
-  // Spec: one row per product; same product again raises the quantity; Thành tiền = Đơn giá × Số lượng.
-  'rows-and-totals': async (page, c) => {
-    await expect.soft(cartRows(page), 'number of cart rows').toHaveCount(c.rows.length);
-    for (const r of c.rows) {
-      const row = rowsFor(page, r.name);
-      await expect.soft(row, `exactly one row for "${r.name}"`).toHaveCount(1);
-      if ((await row.count()) !== 1) continue; // a duplicated row has no single quantity to read
-      const cells = row.locator('td');
-      expect.soft(toNumber(await cells.nth(1).innerText()), `unit price of "${r.name}"`).toBe(r.unitPrice);
-      expect.soft(await quantityOf(row), `quantity of "${r.name}"`).toBe(r.quantity);
-      expect.soft(toNumber(await cells.nth(3).innerText()), `line total of "${r.name}"`).toBe(r.lineTotal);
-    }
-    expect.soft(toNumber(await totalValue(page).innerText()), 'grand total').toBe(c.total);
+  'rows-and-totals': rowsAndTotals,
+
+  // HW02 DT-01: rows and totals, plus the column names, the +/- buttons and the label "Tổng cộng".
+  overview: async (page, c) => {
+    await rowsAndTotals(page, c);
+    // Spec: columns Sản phẩm, Đơn giá, Số lượng, Thành tiền, Thao tác.
+    await expect.soft(page.locator('thead th'), 'column names').toHaveText(c.columns);
+    // Spec: Số lượng (có nút +/- để chỉnh).
+    const row = rowsFor(page, c.quantityButtonsFor).first();
+    await expect.soft(quantityButton(row, '+'), '"+" button in the Số lượng cell').toHaveCount(1);
+    await expect.soft(quantityButton(row, '-'), '"−" button in the Số lượng cell').toHaveCount(1);
+    // Spec: Tổng tiền hiển thị nhãn chính xác "Tổng cộng".
+    await expect.soft(page.getByText(c.totalLabel), `label "${c.totalLabel}"`).toBeVisible();
   },
 
   // Spec: the Số lượng column has +/- buttons to change the quantity.
   'quantity-button': async (page, c) => {
     const row = rowsFor(page, c.product).first();
-    const name = c.button === '+' ? /^\s*\+\s*$/ : /^\s*[-−–]\s*$/;
-    const button = row.getByRole('button', { name });
+    const button = quantityButton(row, c.button);
     await expect(button, `"${c.button}" button in the row of "${c.product}"`).toHaveCount(1);
     await button.click();
     expect.soft(await quantityOf(row), 'quantity after the click').toBe(c.quantityAfter);
     expect.soft(toNumber(await row.locator('td').nth(3).innerText()), 'line total after the click').toBe(c.lineTotalAfter);
+    await expectAmount(totalValue(page), c.totalAfter, 'grand total after the click');
   },
 
   // Spec: an empty cart must show an illustration and a clear message.
   'empty-cart': async (page) => {
-    await expect.soft(emptyMessage(page), 'empty-cart message').toBeVisible();
-    await expect.soft(cartRows(page), 'no product rows').toHaveCount(0);
-    const illustrations = await page.locator('main img, main svg').count();
-    expect.soft(illustrations, 'illustration (img or svg) in the empty-cart view').toBeGreaterThan(0);
+    await expectEmptyView(page);
   },
 
   // Spec: the Xóa button must show a confirmation dialog before it removes anything.
   'remove-dialog': async (page, c) => {
-    const dialog = watchDialog(page, c.dialogAction);
-    await removeButton(rowsFor(page, c.remove).first()).click();
-    // A confirmation may also be an in-page modal instead of a native confirm().
-    const modalShown = (await page.getByRole('dialog').count()) > 0;
-    expect.soft(dialog.shown || modalShown, 'a confirmation dialog is shown before removing').toBe(true);
+    const shown = await clickRemove(page, c.remove, c.dialogAction);
+    expect.soft(shown, 'a confirmation dialog is shown before removing').toBe(true);
     // The click handler updates the cart synchronously, so the rows can be read right after the click.
     expect.soft(await rowNames(page), `rows after "${c.dialogAction}"`).toEqual(c.rowsAfter);
+    await expectAmount(totalValue(page), c.totalAfter, `grand total after "${c.dialogAction}"`);
   },
 
-  // Spec: after the last product is removed the cart is empty and says so.
+  // HW02 DT-11: Xóa → dialog appears → confirm → empty-cart view (no table, illustration + clear message).
   'remove-to-empty': async (page, c) => {
-    watchDialog(page, 'accept'); // the dialog itself is verified by DT-09 and DT-10
-    await removeButton(rowsFor(page, c.remove).first()).click();
-    await expect(cartRows(page), 'no product rows left').toHaveCount(0);
-    await expect(emptyMessage(page), 'empty-cart message').toBeVisible();
+    const shown = await clickRemove(page, c.remove, 'accept');
+    // Spec: Nút Xóa sản phẩm phải có dialog xác nhận trước khi thực hiện.
+    expect.soft(shown, 'a confirmation dialog is shown before removing').toBe(true);
+    // Spec: Giỏ hàng trống phải có hình minh họa và thông báo rõ ràng.
+    await expectEmptyView(page);
   },
 
-  // Spec: a "Tiếp tục mua sắm" button goes back to the home page; the cart must be kept.
+  // Spec: a "Tiếp tục mua sắm" button goes back to the home page; the cart must be kept (HW02 DT-12 step 3).
   'continue-shopping': async (page, c) => {
     const button = page
       .getByRole('link', { name: c.buttonName })
@@ -121,8 +162,9 @@ const checks = {
     await expect(button, `"${c.buttonName}" button on the cart page`).toBeVisible();
     await button.click();
     await expect(page).toHaveURL('/');
+    await expect(page.getByRole('heading', { name: 'Danh sách sản phẩm' }), 'home page product list').toBeVisible();
     await openCart(page);
-    expect(await rowNames(page), 'cart rows after coming back').toEqual(c.rowsAfter);
+    await rowsAndTotals(page, c);
   },
 
   // Spec: exact column names and the label "Tổng cộng" (not "Tổng tạm tính").

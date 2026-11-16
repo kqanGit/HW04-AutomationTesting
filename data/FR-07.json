@@ -1,10 +1,13 @@
 [
   {
     "id": "TC-FR07-DT-01",
-    "title": "Cart shows one row with correct quantity and totals after adding one product",
-    "trace": "FR-07 \"Hiển thị danh sách sản phẩm với các cột: Sản phẩm, Đơn giá, Số lượng, Thành tiền, Thao tác\"",
+    "title": "Cart shows one row with correct columns and totals after adding one product",
+    "trace": "FR-07 \"Hiển thị danh sách sản phẩm với các cột: Sản phẩm, Đơn giá, Số lượng (có nút +/- để chỉnh), Thành tiền, Thao tác\" · \"Tổng tiền hiển thị nhãn chính xác: \"Tổng cộng\"\"",
     "add": ["iPhone 15 Pro Max"],
-    "expected": "rows-and-totals",
+    "expected": "overview",
+    "columns": ["Sản phẩm", "Đơn giá", "Số lượng", "Thành tiền", "Thao tác"],
+    "quantityButtonsFor": "iPhone 15 Pro Max",
+    "totalLabel": "Tổng cộng",
     "rows": [
       { "name": "iPhone 15 Pro Max", "unitPrice": 30000000, "quantity": 1, "lineTotal": 30000000 }
     ],
@@ -23,25 +26,27 @@
   },
   {
     "id": "TC-FR07-DT-04",
-    "title": "Pressing + increases the quantity and the line total",
+    "title": "Pressing + increases the quantity and the totals",
     "trace": "FR-07 \"Số lượng (có nút +/- để chỉnh)\"",
-    "add": ["Tai nghe AirPods Pro 2"],
+    "add": ["iPhone 15 Pro Max"],
     "expected": "quantity-button",
-    "product": "Tai nghe AirPods Pro 2",
+    "product": "iPhone 15 Pro Max",
     "button": "+",
     "quantityAfter": 2,
-    "lineTotalAfter": 12000000
+    "lineTotalAfter": 60000000,
+    "totalAfter": 60000000
   },
   {
     "id": "TC-FR07-DT-05",
-    "title": "Pressing − decreases the quantity and the line total when the quantity is 2",
+    "title": "Pressing − decreases the quantity and the totals when the quantity is 2",
     "trace": "FR-07 \"Số lượng (có nút +/- để chỉnh)\"",
-    "add": ["Tai nghe AirPods Pro 2", "Tai nghe AirPods Pro 2"],
+    "add": ["iPhone 15 Pro Max", "iPhone 15 Pro Max"],
     "expected": "quantity-button",
-    "product": "Tai nghe AirPods Pro 2",
+    "product": "iPhone 15 Pro Max",
     "button": "-",
     "quantityAfter": 1,
-    "lineTotalAfter": 6000000
+    "lineTotalAfter": 30000000,
+    "totalAfter": 30000000
   },
   {
     "id": "TC-FR07-DT-07",
@@ -53,39 +58,41 @@
   {
     "id": "TC-FR07-DT-08",
     "title": "Two different products appear as two rows with a correct grand total",
-    "trace": "FR-07 columns Đơn giá, Số lượng, Thành tiền · grand total = sum of line totals",
-    "add": ["Samsung Galaxy S24 Ultra", "Bàn phím cơ Keychron Q1"],
+    "trace": "FR-07 columns Đơn giá, Số lượng, Thành tiền · \"Thêm cùng một sản phẩm vào giỏ sẽ tăng số lượng, không tạo dòng mới\"",
+    "add": ["Tai nghe AirPods Pro 2", "Bàn phím cơ Keychron Q1", "Bàn phím cơ Keychron Q1"],
     "expected": "rows-and-totals",
     "rows": [
-      { "name": "Samsung Galaxy S24 Ultra", "unitPrice": 28000000, "quantity": 1, "lineTotal": 28000000 },
-      { "name": "Bàn phím cơ Keychron Q1", "unitPrice": 4000000, "quantity": 1, "lineTotal": 4000000 }
+      { "name": "Tai nghe AirPods Pro 2", "unitPrice": 6000000, "quantity": 1, "lineTotal": 6000000 },
+      { "name": "Bàn phím cơ Keychron Q1", "unitPrice": 4000000, "quantity": 2, "lineTotal": 8000000 }
     ],
-    "total": 32000000
+    "total": 14000000
   },
   {
     "id": "TC-FR07-DT-09",
     "title": "Cancelling the remove dialog keeps the product",
     "trace": "FR-07 \"Nút Xóa sản phẩm phải có dialog xác nhận trước khi thực hiện\"",
-    "add": ["iPhone 15 Pro Max"],
+    "add": ["Tai nghe AirPods Pro 2"],
     "expected": "remove-dialog",
-    "remove": "iPhone 15 Pro Max",
+    "remove": "Tai nghe AirPods Pro 2",
     "dialogAction": "dismiss",
-    "rowsAfter": ["iPhone 15 Pro Max"]
+    "rowsAfter": ["Tai nghe AirPods Pro 2"],
+    "totalAfter": 6000000
   },
   {
     "id": "TC-FR07-DT-10",
     "title": "Confirming the remove dialog removes only that product",
     "trace": "FR-07 \"Nút Xóa sản phẩm phải có dialog xác nhận trước khi thực hiện\"",
-    "add": ["iPhone 15 Pro Max", "Tai nghe AirPods Pro 2"],
+    "add": ["Tai nghe AirPods Pro 2", "Bàn phím cơ Keychron Q1"],
     "expected": "remove-dialog",
-    "remove": "iPhone 15 Pro Max",
+    "remove": "Tai nghe AirPods Pro 2",
     "dialogAction": "accept",
-    "rowsAfter": ["Tai nghe AirPods Pro 2"]
+    "rowsAfter": ["Bàn phím cơ Keychron Q1"],
+    "totalAfter": 4000000
   },
   {
     "id": "TC-FR07-DT-11",
     "title": "Removing the last product shows the empty-cart view",
-    "trace": "FR-07 \"Giỏ hàng trống phải có ... thông báo rõ ràng\" after the last row is removed",
+    "trace": "FR-07 \"Nút Xóa sản phẩm phải có dialog xác nhận trước khi thực hiện\" · \"Giỏ hàng trống phải có hình minh họa và thông báo rõ ràng\"",
     "add": ["Bàn phím cơ Keychron Q1"],
     "expected": "remove-to-empty",
     "remove": "Bàn phím cơ Keychron Q1"
@@ -94,15 +101,18 @@
     "id": "TC-FR07-DT-12",
     "title": "Tiếp tục mua sắm returns to the home page and keeps the cart unchanged",
     "trace": "FR-07 \"Có nút Tiếp tục mua sắm để quay về trang chủ\"",
-    "add": ["iPhone 15 Pro Max", "Tai nghe AirPods Pro 2"],
+    "add": ["iPhone 15 Pro Max"],
     "expected": "continue-shopping",
     "buttonName": "Tiếp tục mua sắm",
-    "rowsAfter": ["iPhone 15 Pro Max", "Tai nghe AirPods Pro 2"]
+    "rows": [
+      { "name": "iPhone 15 Pro Max", "unitPrice": 30000000, "quantity": 1, "lineTotal": 30000000 }
+    ],
+    "total": 30000000
   },
   {
     "id": "TC-FR07-BVA-09",
     "title": "Line total and grand total are correct for the highest price with quantity 3",
-    "trace": "FR-07 \"Thêm cùng một sản phẩm vào giỏ sẽ tăng số lượng\" · Thành tiền = Đơn giá × Số lượng (45.000.000 × 3)",
+    "trace": "FR-07 \"Thêm cùng một sản phẩm vào giỏ sẽ tăng số lượng\" · columns Đơn giá, Số lượng, Thành tiền (45.000.000 × 3)",
     "add": ["MacBook Pro M3", "MacBook Pro M3", "MacBook Pro M3"],
     "expected": "rows-and-totals",
     "rows": [
