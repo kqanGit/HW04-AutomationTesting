@@ -1,12 +1,60 @@
-// FR-17 Quản lý Mã Giảm Giá (Admin, tab "Mã Giảm Giá") – data-driven, 16 test cases from HW02.
-// Data: data/FR-17.json (15 rows) + 1 standalone test (DT-17, non-admin, no field data).
-// "expected" follows the spec (README FR-17), not the current EShop behaviour.
-//
-// Assertion patterns planned (filled in step 5):
-//   1. Data state – coupons read back through GET /api/coupons
-//   2. Count      – exactly one table row for a code / no row after delete
-//   3. Content    – values in the coupon's table row (money compared as numbers)
-//   4. Visibility – DT-17: the "Mã Giảm Giá" tab is not shown to a customer
+/*
+ * FR-17 Quản lý Mã Giảm Giá (Admin, tab "Mã Giảm Giá") – data-driven, 16 test cases from HW02.
+ * Data: data/FR-17.json (15 rows) + 1 standalone test (DT-17, non-admin, no field data).
+ * "expected" follows the spec (README FR-17), not the current EShop behaviour.
+ *
+ * Every data-loop case first (beforeEach): coupons with id > 4 are deleted through the API, the admin logs in
+ * and opens the tab, then [Visibility] the heading "Quản lý Mã Giảm Giá" is visible (precondition).
+ * The steps (create / delete) only record what happened (browser block, HTTP status, alert texts) in the
+ * "Steps result" annotation; none of it is asserted – the verdict comes from the checks below.
+ *
+ * ASSERTIONS PER EXPECTED TYPE (keys of `checks`, in the order they run)
+ *
+ * created – DT-01, DT-02, DT-24 (create → delete → create again), BVA-03
+ *   1. [Data state]   API coupon list: exactly one coupon with the row's code (hard)
+ *   2. [Data state]   API coupon list: 4 seed coupons + 1
+ *   3. [Data state]   the saved coupon's type, discount_value, min_order_amount, expired_at (yyyy-mm-dd) and
+ *                     max_uses_per_user equal the row
+ *   4. [Count]        exactly one table row whose first cell is the code (hard)
+ *   5. [Content/text] Giá trị, Đơn tối thiểu and Giới hạn/người cells (digits only) equal the row
+ *   Spec: "Admin có thể Thêm / Xem / Xóa mã giảm giá" · "Các trường bắt buộc: `code` (duy nhất), `type`
+ *   (percent/fixed), `discount_value` (dương), `expired_at`, `min_order_amount` (>= 0), `max_uses_per_user` (>= 1)"
+ *   (traces: DT-01 all field rules · DT-02 "`type` (percent/fixed)" "`min_order_amount` (>= 0)" "`max_uses_per_user`
+ *   (>= 1)" · DT-24 "`code` (duy nhất)" "Xóa" · BVA-03 "`discount_value` (dương)").
+ *   Not asserted: the success alert text (not in the spec); how Loại and Hết hạn are displayed (the spec does
+ *   not define it, so they are checked in the saved data only); the money format on screen.
+ *
+ * rejected – DT-04, DT-05, DT-06, DT-08, DT-10, DT-12, DT-15, BVA-02, BVA-08, BVA-10
+ *   1. [Data state] API coupon list: no coupon besides the 4 seed coupons (also catches a second SAVE10)
+ *   Spec: "Các trường bắt buộc: `code` (duy nhất), `type` (percent/fixed), `discount_value` (dương), `expired_at`,
+ *   `min_order_amount` (>= 0), `max_uses_per_user` (>= 1)" – the broken rule of each row is named in its trace
+ *   (e.g. DT-04 "Các trường bắt buộc: `code` …", BVA-08 "`min_order_amount` (>= 0)").
+ *   Not asserted: which field was refused, the error/alert wording, the HTTP status, and whether the browser or
+ *   the backend refused it – the spec only says the coupon must not be saved, and each row has exactly one
+ *   invalid value, so the data state shows whether that rule held. The table is not checked either: the API is
+ *   the source of truth and a missing row would add nothing. submitCoupon has already waited for the page to
+ *   react, so the data read here is final.
+ *
+ * deleted – DT-03
+ *   1. [Data state] API coupon list: no coupon with the row's code (hard)
+ *   2. [Data state] API coupon list: exactly the 4 seed coupons
+ *   3. [Count]      no table row whose first cell is the code
+ *   Spec: "Admin có thể Thêm / Xem / Xóa mã giảm giá".
+ *   Not asserted: a confirmation dialog (FR-17 does not require one; any dialog is accepted) and the DELETE
+ *   status (recorded in "Steps result").
+ *
+ * Standalone test DT-17 – a customer (non-Admin) cannot manage coupons
+ *   (precondition) expect.poll: an alert fired or the "EShop Admin" heading appeared – the page has reacted
+ *   1. [Count] no tab "Mã Giảm Giá" (li) for the customer
+ *   2. [Count] no heading "Quản lý Mã Giảm Giá"
+ *   Spec: "Admin có thể Thêm / Xem / Xóa mã giảm giá" (trace of the test annotation).
+ *   Not asserted: the alert wording (not in the spec); calls to POST / DELETE /api/admin/coupons with a customer
+ *   token – the test works at the UI level only (see report/bugs.md: no admin role check on that API, read in
+ *   code, not executed).
+ *
+ * Distinct assertion patterns in this spec (4): data state via API, count, content/text, visibility (precondition
+ * in beforeEach only).
+ */
 const { test, expect } = require('@playwright/test');
 const cases = require('../data/FR-17.json');
 const {
