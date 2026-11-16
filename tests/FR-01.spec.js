@@ -1,13 +1,61 @@
-// FR-01 Đăng ký tài khoản (/register) – data-driven, 12 test cases from HW02.
-// Data: data/FR-01.json. "expected" follows the spec (README FR-01), not the current EShop behaviour.
-//
-// Assertion patterns used in this file:
-//   1. URL            – expect(page).toHaveURL(...)
-//   2. Visibility     – expect(errorBox).toBeVisible()
-//   3. Content        – expect(errorBox).not.toContainText(...)
-//   4. Input validity – el.validity.valueMissing (HTML5 required)
-//   5. Data state     – users list / login status read through the backend API
-//   6. Count          – expect(locator).toHaveCount(n)
+/*
+ * FR-01 Đăng ký tài khoản (/register) – data-driven, 12 test cases from HW02.
+ * Data: data/FR-01.json. "expected" follows the spec (README FR-01), not the current EShop behaviour.
+ * Every case runs in the data loop; this file has no standalone test (DT-21 is the data row whose
+ * expected type is "has-confirm-field").
+ *
+ * Every case first (beforeEach): users with id > 2 are deleted through the API, then /register is opened.
+ *
+ * ASSERTIONS PER EXPECTED TYPE (in the order they run)
+ *
+ * success – DT-01
+ *   1. [URL]        the page URL ends with /login
+ *   2. [Data state] API user list: exactly one user with the row's email
+ *   3. [Data state] API login with the row's email and password answers 200
+ *   Spec: trace "FR-01 · P1, P4, P12, P21" – "Sau khi đăng ký thành công, người dùng được chuyển tới trang Đăng nhập."
+ *   Not asserted: a success message or alert text (the spec gives none) and the content of the Login page
+ *   (the URL and the stored account are what the spec sentence promises).
+ *
+ * missing-field – DT-02 (Họ Tên), DT-04 (Email), DT-17 (Mật khẩu)
+ *   1. [Field validity] the input named by emptyField has validity.valueMissing === true
+ *   2. [URL]            the URL still ends with /register
+ *   3. [Data state]     API user list: no user with id > 2 (no account created)
+ *   Spec: "Người dùng phải cung cấp: Họ Tên, Email, Mật khẩu." (trace: "phải cung cấp: Họ Tên" / "Email" / "Mật khẩu")
+ *   Not asserted: the browser's validation bubble text – it differs between chromium, firefox and webkit
+ *   and is not written in the spec.
+ *
+ * weak-password – DT-11, DT-12, DT-13, DT-14, DT-15
+ *   1. [Visibility] the error box (the div right after the "Đăng Ký Tài Khoản" heading) is visible
+ *   2. [URL]        the URL still ends with /register
+ *   3. [Data state] API user list: no user with id > 2
+ *   Spec: "Yêu cầu mật khẩu mạnh: Tối thiểu 8 ký tự, có ít nhất 1 chữ hoa, 1 chữ thường, 1 chữ số và 1 ký tự đặc biệt"
+ *   (trace: "Tối thiểu 8 ký tự" / "ít nhất 1 chữ hoa" / "1 chữ thường" / "1 chữ số" / "1 ký tự đặc biệt")
+ *   Not asserted: the error wording and which rule it names – the spec fixes no message text; the data state
+ *   check proves the account was refused, and each row breaks exactly one password rule.
+ *
+ * rejected-email – DT-05 (no @), DT-09 (email already registered)
+ *   1. [Visibility]   the error box is visible
+ *   2. [Content/text] the error box does NOT contain "Mật khẩu quá yếu" (negative guard: the row's password is
+ *                     valid, so a weak-password message means the row was refused for the wrong reason)
+ *   3. [URL]          the URL still ends with /register
+ *   4. [Data state]   API user list: no user with id > 2
+ *   DT-09 only (the row has existingPassword):
+ *   5. [Data state]   API user list: exactly one user with that email (case-insensitive)
+ *   6. [Data state]   API login with the existing password still answers 200
+ *   Spec: "Email phải có định dạng hợp lệ (user@domain.com) và là duy nhất trong hệ thống."
+ *   (trace: "định dạng hợp lệ" / "là duy nhất trong hệ thống")
+ *   Not asserted: the expected email error wording – the spec gives none (tester's decision). Check 2 only
+ *   detects a masked rejection; it does not prove that the email rule produced the message.
+ *
+ * has-confirm-field – DT-21
+ *   1. [Count] exactly expectedCount (1) inputs right after a label "Xác nhận mật khẩu"
+ *   Spec: "Phải có trường Xác nhận mật khẩu" (trace: "Phải có trường Xác nhận mật khẩu" · precondition of P21–P23)
+ *   Not asserted: the mismatch rule ("hệ thống từ chối nếu hai trường không khớp") – it cannot be exercised
+ *   while the field is missing, so no form is submitted in this case. A raw locator is used instead of
+ *   fieldByLabel(), which takes .first() and would hide a duplicated field.
+ *
+ * Distinct assertion patterns in this spec (6): URL, visibility, content/text, count, field validity, data state via API.
+ */
 const { test, expect } = require('@playwright/test');
 const cases = require('../data/FR-01.json');
 const {
