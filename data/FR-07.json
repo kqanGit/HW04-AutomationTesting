@@ -57,7 +57,7 @@
   },
   {
     "id": "TC-FR07-DT-08",
-    "title": "Two different products appear as two rows with a correct grand total",
+    "title": "AirPods once and Keychron twice: two rows, Keychron quantity 2, correct grand total",
     "trace": "FR-07 columns Đơn giá, Số lượng, Thành tiền · \"Thêm cùng một sản phẩm vào giỏ sẽ tăng số lượng, không tạo dòng mới\"",
     "add": ["Tai nghe AirPods Pro 2", "Bàn phím cơ Keychron Q1", "Bàn phím cơ Keychron Q1"],
     "expected": "rows-and-totals",

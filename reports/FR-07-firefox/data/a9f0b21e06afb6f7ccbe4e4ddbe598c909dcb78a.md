@@ -1,0 +1,238 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: FR-07.spec.js >> FR-07 Giỏ hàng >> TC-FR07-AT-01 – Cart table uses the column names and the total label required by the spec
+- Location: tests\FR-07.spec.js:199:5
+
+# Error details
+
+```
+Error: column names
+
+expect(locator).toHaveText(expected) failed
+
+Locator: locator('thead th')
+Timeout: 5000ms
+- Expected  - 1
++ Received  + 1
+
+  Array [
+    "Sản phẩm",
+-   "Đơn giá",
++   "Giá",
+    "Số lượng",
+    "Thành tiền",
+    "Thao tác",
+  ]
+
+Call log:
+  - column names locator('thead th') with timeout 5000ms
+  - waiting for locator('thead th')
+    14 × locator resolved to 5 elements
+
+```
+
+```
+Error: label "Tổng cộng"
+
+expect(locator).toBeVisible() failed
+
+Locator: getByText('Tổng cộng')
+Expected: visible
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+  - label "Tổng cộng" getByText('Tổng cộng') with timeout 5000ms
+  - waiting for getByText('Tổng cộng')
+
+```
+
+```yaml
+- banner:
+  - link "EShop":
+    - /url: /
+  - navigation:
+    - link "Giỏ hàng":
+      - /url: /cart
+    - link "Đăng nhập":
+      - /url: /login
+    - link "Đăng ký":
+      - /url: /register
+- main:
+  - heading "Giỏ Hàng" [level=2]
+  - table:
+    - rowgroup:
+      - row "Sản phẩm Giá Số lượng Thành tiền Thao tác":
+        - columnheader "Sản phẩm"
+        - columnheader "Giá"
+        - columnheader "Số lượng"
+        - columnheader "Thành tiền"
+        - columnheader "Thao tác"
+    - rowgroup:
+      - row "iPhone 15 Pro Max 30.000.000 ₫ 1 30.000.000 ₫ Xóa":
+        - cell "iPhone 15 Pro Max"
+        - cell "30.000.000 ₫"
+        - cell "1"
+        - cell "30.000.000 ₫"
+        - cell "Xóa":
+          - button "Xóa"
+  - text: "Tổng tạm tính: 30.000.000 ₫"
+  - link "← Mua tiếp":
+    - /url: /
+  - button "Tiến hành thanh toán"
+- contentinfo: © 2026 EShop SUT. Dành cho mục đích kiểm thử.
+```
+
+```
+Error: label "Tổng tạm tính" is not used
+
+expect(locator).toHaveCount(expected) failed
+
+Locator:  getByText('Tổng tạm tính')
+Expected: 0
+Received: 1
+Timeout:  5000ms
+
+Call log:
+  - label "Tổng tạm tính" is not used getByText('Tổng tạm tính') with timeout 5000ms
+  - waiting for getByText('Tổng tạm tính')
+    14 × locator resolved to 1 element
+       - unexpected value "1"
+
+```
+
+# Test source
+
+```ts
+  86  |   const illustrations = await page.locator('main img, main svg').count();
+  87  |   expect.soft(illustrations, 'illustration (img or svg) in the empty-cart view').toBeGreaterThan(0);
+  88  | }
+  89  | 
+  90  | // ---------- one check per "expected" type ----------
+  91  | // Spec: one row per product; same product again raises the quantity; columns Đơn giá, Số lượng, Thành tiền
+  92  | // (Thành tiền = Đơn giá × Số lượng and the grand total = sum of Thành tiền are derived, not quoted).
+  93  | 
+  94  | /**
+  95  |  * Expected grand total of a data row: a literal "total", or "totalFrom": "lineTotals" to add up the
+  96  |  * rows' lineTotal values (so no new money figure has to be written in the data file).
+  97  |  * Anything else is a data error and fails the test instead of checking nothing.
+  98  |  */
+  99  | function expectedTotal(c) {
+  100 |   if (typeof c.total === 'number') return c.total;
+  101 |   if (c.totalFrom === 'lineTotals') return c.rows.reduce((sum, r) => sum + r.lineTotal, 0);
+  102 |   throw new Error(`${c.id}: give "total" (number) or "totalFrom": "lineTotals"`);
+  103 | }
+  104 | 
+  105 | async function rowsAndTotals(page, c) {
+  106 |   await expect.soft(cartRows(page), 'number of cart rows').toHaveCount(c.rows.length);
+  107 |   for (const r of c.rows) {
+  108 |     const row = rowsFor(page, r.name);
+  109 |     await expect.soft(row, `exactly one row for "${r.name}"`).toHaveCount(1);
+  110 |     if ((await row.count()) !== 1) continue; // a duplicated row has no single quantity to read
+  111 |     const cells = row.locator('td');
+  112 |     expect.soft(toNumber(await cells.nth(1).innerText()), `unit price of "${r.name}"`).toBe(r.unitPrice);
+  113 |     expect.soft(await quantityOf(row), `quantity of "${r.name}"`).toBe(r.quantity);
+  114 |     expect.soft(toNumber(await cells.nth(3).innerText()), `line total of "${r.name}"`).toBe(r.lineTotal);
+  115 |   }
+  116 |   await expectAmount(totalValue(page), expectedTotal(c), 'grand total');
+  117 | }
+  118 | 
+  119 | const checks = {
+  120 |   'rows-and-totals': rowsAndTotals,
+  121 | 
+  122 |   // HW02 DT-01: rows and totals, plus the column names, the +/- buttons and the label "Tổng cộng".
+  123 |   overview: async (page, c) => {
+  124 |     await rowsAndTotals(page, c);
+  125 |     // Spec: columns Sản phẩm, Đơn giá, Số lượng, Thành tiền, Thao tác.
+  126 |     await expect.soft(page.locator('thead th'), 'column names').toHaveText(c.columns);
+  127 |     // Spec: Số lượng (có nút +/- để chỉnh).
+  128 |     const row = rowsFor(page, c.quantityButtonsFor).first();
+  129 |     await expect.soft(quantityButton(row, '+'), '"+" button in the Số lượng cell').toHaveCount(1);
+  130 |     await expect.soft(quantityButton(row, '-'), '"−" button in the Số lượng cell').toHaveCount(1);
+  131 |     // Spec: Tổng tiền hiển thị nhãn chính xác "Tổng cộng".
+  132 |     await expect.soft(page.getByText(c.totalLabel), `label "${c.totalLabel}"`).toBeVisible();
+  133 |   },
+  134 | 
+  135 |   // Spec: the Số lượng column has +/- buttons to change the quantity.
+  136 |   'quantity-button': async (page, c) => {
+  137 |     const row = rowsFor(page, c.product).first();
+  138 |     const button = quantityButton(row, c.button);
+  139 |     await expect(button, `"${c.button}" button in the row of "${c.product}"`).toHaveCount(1);
+  140 |     await button.click();
+  141 |     expect.soft(await quantityOf(row), 'quantity after the click').toBe(c.quantityAfter);
+  142 |     expect.soft(toNumber(await row.locator('td').nth(3).innerText()), 'line total after the click').toBe(c.lineTotalAfter);
+  143 |     await expectAmount(totalValue(page), c.totalAfter, 'grand total after the click');
+  144 |   },
+  145 | 
+  146 |   // Spec: an empty cart must show an illustration and a clear message.
+  147 |   'empty-cart': async (page) => {
+  148 |     await expectEmptyView(page);
+  149 |   },
+  150 | 
+  151 |   // Spec: the Xóa button must show a confirmation dialog before it removes anything.
+  152 |   'remove-dialog': async (page, c) => {
+  153 |     const shown = await clickRemove(page, c.remove, c.dialogAction);
+  154 |     expect.soft(shown, 'a confirmation dialog is shown before removing').toBe(true);
+  155 |     // The click handler updates the cart synchronously, so the rows can be read right after the click.
+  156 |     expect.soft(await rowNames(page), `rows after "${c.dialogAction}"`).toEqual(c.rowsAfter);
+  157 |     await expectAmount(totalValue(page), c.totalAfter, `grand total after "${c.dialogAction}"`);
+  158 |   },
+  159 | 
+  160 |   // HW02 DT-11: Xóa → dialog appears → confirm → empty-cart view (no table, illustration + clear message).
+  161 |   'remove-to-empty': async (page, c) => {
+  162 |     const shown = await clickRemove(page, c.remove, 'accept');
+  163 |     // Spec: Nút Xóa sản phẩm phải có dialog xác nhận trước khi thực hiện.
+  164 |     expect.soft(shown, 'a confirmation dialog is shown before removing').toBe(true);
+  165 |     // Spec: Giỏ hàng trống phải có hình minh họa và thông báo rõ ràng.
+  166 |     await expectEmptyView(page);
+  167 |   },
+  168 | 
+  169 |   // Spec: a "Tiếp tục mua sắm" button goes back to the home page; the cart must be kept (HW02 DT-12 step 3).
+  170 |   'continue-shopping': async (page, c) => {
+  171 |     const button = page
+  172 |       .getByRole('link', { name: c.buttonName })
+  173 |       .or(page.getByRole('button', { name: c.buttonName }));
+  174 |     await expect(button, `"${c.buttonName}" button on the cart page`).toBeVisible();
+  175 |     await button.click();
+  176 |     await expect(page).toHaveURL('/');
+  177 |     await expect(page.getByRole('heading', { name: 'Danh sách sản phẩm' }), 'home page product list').toBeVisible();
+  178 |     await openCart(page);
+  179 |     await rowsAndTotals(page, c);
+  180 |   },
+  181 | 
+  182 |   // Spec: exact column names and the label "Tổng cộng" (not "Tổng tạm tính").
+  183 |   labels: async (page, c) => {
+  184 |     await expect.soft(page.locator('thead th'), 'column names').toHaveText(c.columns);
+  185 |     await expect.soft(page.getByText(c.totalLabel), `label "${c.totalLabel}"`).toBeVisible();
+> 186 |     await expect.soft(page.getByText(c.forbiddenTotalLabel), `label "${c.forbiddenTotalLabel}" is not used`).toHaveCount(0);
+      |                                                                                                              ^ Error: label "Tổng tạm tính" is not used
+  187 |   },
+  188 | };
+  189 | 
+  190 | test.describe('FR-07 Giỏ hàng', () => {
+  191 |   test.beforeEach(async ({ page }, testInfo) => {
+  192 |     tagRunBy(testInfo);
+  193 |     // The cart is kept in the page's memory, so every test starts with an empty cart: no API cleanup needed.
+  194 |     await page.goto('/');
+  195 |     await expect(page.getByRole('heading', { name: 'Danh sách sản phẩm' })).toBeVisible();
+  196 |   });
+  197 | 
+  198 |   for (const c of cases) {
+  199 |     test(`${c.id} – ${c.title}`, async ({ page }, testInfo) => {
+  200 |       testInfo.annotations.push({ type: 'Trace', description: c.trace });
+  201 |       const check = checks[c.expected];
+  202 |       if (!check) throw new Error(`Unknown expected value "${c.expected}" in ${c.id}`);
+  203 | 
+  204 |       await openCartWith(page, c.add);
+  205 |       await check(page, c);
+  206 |     });
+  207 |   }
+  208 | });
+  209 | 
+```
