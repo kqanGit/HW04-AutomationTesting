@@ -13,6 +13,11 @@ Bugs revealed by failing assertions in the automation suite. Each bug is also lo
 | BUG-HW04-FR07-05 | FR-07 | Cart column header shows "Giá" instead of "Đơn giá" | TC-FR07-AT-01, DT-01 | chromium, firefox, webkit | [#7](https://github.com/kqanGit/HW04-AutomationTesting/issues/7) |
 | BUG-HW04-FR07-06 | FR-07 | Empty cart shows no illustration | TC-FR07-DT-07, DT-11 | chromium, firefox, webkit | [#8](https://github.com/kqanGit/HW04-AutomationTesting/issues/8) |
 | BUG-HW04-FR07-07 | FR-07 | Cart with products has no "Tiếp tục mua sắm" button (only "← Mua tiếp") | TC-FR07-DT-12 | chromium, firefox, webkit | [#9](https://github.com/kqanGit/HW04-AutomationTesting/issues/9) |
+| BUG-HW04-FR17-01 | FR-17 | Coupon is created when discount_value is 0 | TC-FR17-BVA-02 | chromium, firefox, webkit | [#10](https://github.com/kqanGit/HW04-AutomationTesting/issues/10) |
+| BUG-HW04-FR17-02 | FR-17 | Coupon is created with a negative min_order_amount | TC-FR17-BVA-08 | chromium, firefox, webkit | [#11](https://github.com/kqanGit/HW04-AutomationTesting/issues/11) |
+| BUG-HW04-FR17-03 | FR-17 | Coupon is created when the required min_order_amount is left empty | TC-FR17-DT-12 | chromium, firefox, webkit | [#12](https://github.com/kqanGit/HW04-AutomationTesting/issues/12) |
+| BUG-HW04-FR17-04 | FR-17 | Coupon is created when the required max_uses_per_user is left empty (saved as 1) | TC-FR17-DT-15 | chromium, firefox, webkit | [#13](https://github.com/kqanGit/HW04-AutomationTesting/issues/13) |
+| BUG-HW04-FR17-05 | FR-17 | Coupon is created with a code made only of spaces | TC-FR17-DT-05 | chromium, firefox, webkit | [#14](https://github.com/kqanGit/HW04-AutomationTesting/issues/14) |
 
 <!-- Template for each bug:
 
@@ -114,3 +119,56 @@ Bugs revealed by failing assertions in the automation suite. Each bug is also lo
 - Evidence: `report/github-issues-screenshots/BUG-HW04-FR07-07_DT-12_webkit.png`; reports/FR-07-{chromium,firefox,webkit}/
 - GitHub issue: https://github.com/kqanGit/HW04-AutomationTesting/issues/9
 - Related HW02 issue: https://github.com/kqanGit/eshop-sut/issues/14
+
+## BUG-HW04-FR17-01 – Coupon is created when discount_value is 0
+- Failing test: TC-FR17-BVA-02
+- Browsers: chromium, firefox, webkit
+- Steps to reproduce: Admin app → log in as Admin → "Mã Giảm Giá" → code `T17B02`, Phần trăm (%), discount value `0`, min order `0`, expiry `2099-12-31`, max uses `1` → "Tạo mã".
+- Expected (spec): "`discount_value` (dương)". 0 is not positive, so nothing is saved besides the 4 seed coupons.
+- Actual: backend answers 200; `GET /api/coupons` returns a 5th coupon T17B02 with discount_value 0 (list: "0%").
+- Evidence: `report/github-issues-screenshots/BUG-HW04-FR17-01_BVA-02_webkit.png`; reports/FR-17-{chromium,firefox,webkit}/
+- GitHub issue: https://github.com/kqanGit/HW04-AutomationTesting/issues/10
+- Related HW02 issue: https://github.com/kqanGit/eshop-sut/issues/28
+
+## BUG-HW04-FR17-02 – Coupon is created with a negative min_order_amount
+- Failing test: TC-FR17-BVA-08
+- Browsers: chromium, firefox, webkit
+- Steps to reproduce: as above with code `T17B08`, discount value `10`, min order `-1`.
+- Expected (spec): "`min_order_amount` (>= 0)". −1 is rejected; only the 4 seed coupons exist.
+- Actual: backend answers 200; a 5th coupon T17B08 with min_order_amount −1 is saved.
+- Evidence: `report/github-issues-screenshots/BUG-HW04-FR17-02_BVA-08_webkit.png`; reports/FR-17-{chromium,firefox,webkit}/
+- GitHub issue: https://github.com/kqanGit/HW04-AutomationTesting/issues/11
+- Related HW02 issue: https://github.com/kqanGit/eshop-sut/issues/29
+
+## BUG-HW04-FR17-03 – Coupon is created when the required min_order_amount is left empty
+- Failing test: TC-FR17-DT-12
+- Browsers: chromium, firefox, webkit
+- Steps to reproduce: as above with code `T17DT12`, discount value `10`, and the box "Đơn tối thiểu (₫)" cleared.
+- Expected (spec): "Các trường bắt buộc: … `min_order_amount` (>= 0)". A coupon without it is rejected.
+- Actual: the browser does not block the submit; backend answers 200; coupon T17DT12 saved with an empty min_order_amount (list shows "₫" only).
+- Evidence: `report/github-issues-screenshots/BUG-HW04-FR17-03_DT-12_webkit.png`; reports/FR-17-{chromium,firefox,webkit}/
+- GitHub issue: https://github.com/kqanGit/HW04-AutomationTesting/issues/12
+- Related HW02 issue: https://github.com/kqanGit/eshop-sut/issues/30
+
+## BUG-HW04-FR17-04 – Coupon is created when the required max_uses_per_user is left empty (saved as 1)
+- Failing test: TC-FR17-DT-15
+- Browsers: chromium, firefox, webkit
+- Steps to reproduce: as above with code `T17DT15`, discount value `10`, and the box "Số lần dùng tối đa/người" cleared.
+- Expected (spec): "Các trường bắt buộc: … `max_uses_per_user` (>= 1)". A coupon without it is rejected.
+- Actual: the browser does not block the submit; backend answers 200; coupon T17DT15 saved and shown as "1 lần".
+- Evidence: `report/github-issues-screenshots/BUG-HW04-FR17-04_DT-15_webkit.png`; reports/FR-17-{chromium,firefox,webkit}/
+- GitHub issue: https://github.com/kqanGit/HW04-AutomationTesting/issues/13
+- Related HW02 issue: https://github.com/kqanGit/eshop-sut/issues/31
+
+## BUG-HW04-FR17-05 – Coupon is created with a code made only of spaces
+- Failing test: TC-FR17-DT-05
+- Browsers: chromium, firefox, webkit
+- Steps to reproduce: as above with code = three spaces, discount value `10`.
+- Expected (spec): "Các trường bắt buộc: `code` (duy nhất) …"; a code of only spaces counts as empty (tester decision, HW02 and audit A24–A26). The coupon is rejected.
+- Actual: backend answers 200; a 5th coupon with code `"   "` is saved (blank code in the list).
+- Evidence: `report/github-issues-screenshots/BUG-HW04-FR17-05_DT-05_webkit.png`; reports/FR-17-{chromium,firefox,webkit}/
+- GitHub issue: https://github.com/kqanGit/HW04-AutomationTesting/issues/14
+- Related HW02 issue: https://github.com/kqanGit/eshop-sut/issues/32
+
+### Note on TC-FR17-DT-17 (passes, UI only)
+DT-17 checks that a customer gets no "Mã Giảm Giá" tab in the Admin app. The backend routes `POST` / `DELETE /api/admin/coupons` only check that a token is valid (`authenticateToken`), with no admin role check (read in `server.js`, not executed). Whether a customer token can create or delete coupons through the API is not tested (API out of scope since HW02, P9). Tester decision on extending DT-17 is open.
