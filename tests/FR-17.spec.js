@@ -9,7 +9,9 @@
 //   4. Visibility – DT-17: the "Mã Giảm Giá" tab is not shown to a customer
 const { test, expect } = require('@playwright/test');
 const cases = require('../data/FR-17.json');
-const { tagRunBy, deleteTestCoupons, openAdminTab, ADMIN_URL, USER } = require('../helpers/common');
+const {
+  tagRunBy, deleteTestCoupons, openAdminTab, listCoupons, toNumber, SEED, ADMIN_URL, USER,
+} = require('../helpers/common');
 
 // ---------- locators (step 2, accepted by the tester) ----------
 const couponForm = (page) =>
@@ -62,15 +64,56 @@ async function deleteCoupon(page, code) {
 }
 
 // ---------- one check per "expected" type (step 5) ----------
+// Table cells of a coupon row: 0 Mã · 1 Loại · 2 Giá trị · 3 Đơn tối thiểu · 4 Hết hạn · 5 Giới hạn/người · 6 Hành động.
+// Only numbers are compared on screen (digits only: thousands separators differ per browser);
+// the spec does not define how type and date are displayed, so those are checked in the saved data.
 const checks = {
-  // Spec: Admin có thể Thêm / Xem mã giảm giá; every field rule is met, so the coupon is saved and listed.
-  created: async (page, c, ctx) => {},
+  // Spec: "Admin có thể Thêm / Xem … mã giảm giá"; every rule of "Các trường bắt buộc" is met.
+  created: async (page, c, ctx) => {
+    const all = await listCoupons(ctx.request);
+    const saved = all.filter((x) => x.code === c.code);
+    // Spec: Thêm + "`code` (duy nhất)" – the coupon is saved exactly once.
+    expect(saved, `coupons saved with code "${c.code}"`).toHaveLength(1);
+    // Spec: Thêm – the 4 seed coupons are untouched, only one coupon is added.
+    expect.soft(all, 'number of coupons (4 seed + 1)').toHaveLength(SEED.maxCouponId + 1);
+    // Spec: Các trường bắt buộc – every field is stored with the value entered.
+    const s = saved[0];
+    expect.soft(s.type, 'saved type').toBe(c.type);
+    expect.soft(Number(s.discount_value), 'saved discount_value').toBe(c.discount_value);
+    expect.soft(Number(s.min_order_amount), 'saved min_order_amount').toBe(c.min_order_amount);
+    expect.soft(String(s.expired_at).slice(0, 10), 'saved expired_at').toBe(c.expired_at);
+    expect.soft(Number(s.max_uses_per_user), 'saved max_uses_per_user').toBe(c.max_uses_per_user);
 
-  // Spec: Các trường bắt buộc … (rule named in c.trace); nothing may be saved.
-  rejected: async (page, c, ctx) => {},
+    // Spec: Xem – the new coupon appears once in the list.
+    const row = couponRow(page, c.code);
+    await expect(row, `table rows for "${c.code}"`).toHaveCount(1);
+    const cells = row.locator('td');
+    // Spec: Xem – the listed values are the entered values.
+    expect.soft(toNumber(await cells.nth(2).innerText()), 'Giá trị shown').toBe(c.discount_value);
+    expect.soft(toNumber(await cells.nth(3).innerText()), 'Đơn tối thiểu shown').toBe(c.min_order_amount);
+    expect.soft(toNumber(await cells.nth(5).innerText()), 'Giới hạn/người shown').toBe(c.max_uses_per_user);
+  },
 
-  // Spec: Admin có thể … Xóa mã giảm giá.
-  deleted: async (page, c, ctx) => {},
+  // Spec: "Các trường bắt buộc: …" (the broken rule is named in c.trace) – an invalid coupon is not saved.
+  // submitCoupon has already waited for the page to react (browser block or backend answer),
+  // so the saved data is final when it is read here.
+  rejected: async (page, c, ctx) => {
+    const all = await listCoupons(ctx.request);
+    const added = all.filter((x) => x.id > SEED.maxCouponId).map((x) => x.code); // the diff quotes them, so "   " stays visible
+    // Spec: Các trường bắt buộc – nothing besides the 4 seed coupons exists (also catches a 2nd SAVE10).
+    expect(added, 'coupons saved besides the 4 seed coupons').toEqual([]);
+  },
+
+  // Spec: "Admin có thể … Xóa mã giảm giá".
+  deleted: async (page, c, ctx) => {
+    const all = await listCoupons(ctx.request);
+    // Spec: Xóa – the coupon is no longer saved.
+    expect(all.filter((x) => x.code === c.code), `coupons saved with code "${c.code}"`).toHaveLength(0);
+    // Spec: Xóa removes only that coupon – the 4 seed coupons are untouched.
+    expect.soft(all, 'number of coupons (4 seed)').toHaveLength(SEED.maxCouponId);
+    // Spec: Xem – the deleted coupon is no longer listed.
+    await expect(couponRow(page, c.code), `table rows for "${c.code}"`).toHaveCount(0);
+  },
 };
 
 test.describe('FR-17 Quản lý Mã Giảm Giá', () => {
@@ -136,6 +179,9 @@ test.describe('FR-17 Quản lý Mã Giảm Giá – non-admin', () => {
     await expect.poll(async () => dialogs.length + (await adminHeading.count()), { message: 'page reacted to the login' }).toBeGreaterThan(0);
     testInfo.annotations.push({ type: 'Steps result', description: JSON.stringify({ dialogs }) });
 
-    // Step 5: assertions (no "Mã Giảm Giá" tab; only the seed coupons exist).
+    // Spec: only "Admin có thể Thêm / Xem / Xóa mã giảm giá" – a customer reaches neither the tab nor the coupon page.
+    // (The alert wording is not in the spec and is not asserted.)
+    await expect(page.locator('li', { hasText: 'Mã Giảm Giá' }), '"Mã Giảm Giá" tab for a customer').toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Quản lý Mã Giảm Giá' }), 'coupon page for a customer').toHaveCount(0);
   });
 });
