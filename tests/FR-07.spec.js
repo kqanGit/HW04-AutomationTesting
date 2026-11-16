@@ -1,13 +1,97 @@
-// FR-07 Giỏ hàng (/cart) – data-driven, 13 test cases (11 from HW02 + AT-01, AT-02 added from the spec).
-// Data: data/FR-07.json. Products, quantities and expected results are those of the HW02 test cases
-// with the same ID (HW2/features/FR-07-shopping-cart/test-cases.md); "expected" follows the spec, not EShop.
-//
-// Assertion patterns used in this file:
-//   1. Count        – expect(rows).toHaveCount(n)
-//   2. Content      – expect(headers).toHaveText([...]), numeric cell values
-//   3. Visibility   – expect(locator).toBeVisible()
-//   4. URL          – expect(page).toHaveURL(...)
-//   5. Dialog       – a confirmation dialog was shown before removing a product
+/*
+ * FR-07 Giỏ hàng (/cart) – data-driven, 13 test cases (11 from HW02 + AT-01, AT-02 added from the spec).
+ * Data: data/FR-07.json. Products, quantities and expected results are those of the HW02 test cases
+ * with the same ID (HW2/features/FR-07-shopping-cart/test-cases.md); "expected" follows the spec, not EShop.
+ * Every case runs in the data loop (one `checks` function per expected type); there is no standalone test.
+ * Most checks are soft (expect.soft / softExpect.poll) so one run reports every mismatch of a case.
+ * Money and quantities are compared as numbers (toNumber keeps digits only: separators differ per browser).
+ *
+ * Every case first:
+ *   - beforeEach  [Visibility] the home page heading "Danh sách sản phẩm" is visible
+ *   - openCartWith (adds c.add from the home page, opens the cart through the header link)
+ *       [URL]        the URL ends with /cart
+ *       [Visibility] the first cart row is visible (only when c.add is not empty)
+ *   These are preconditions, not the verdict of the case.
+ *
+ * ASSERTIONS PER EXPECTED TYPE (keys of `checks`, in the order they run)
+ *
+ * rows-and-totals – DT-02, DT-08, BVA-09, AT-02
+ *   1. [Count]        number of tbody rows = rows.length
+ *   For each expected row:
+ *   2. [Count]        exactly one row contains the product name (skips 3–5 for that product if not)
+ *   3. [Content/text] Đơn giá cell (column 2) = unitPrice
+ *   4. [Content/text] Số lượng (column 3) = quantity – read as [Input value] when the cell holds an <input>
+ *   5. [Content/text] Thành tiền cell (column 4) = lineTotal
+ *   Then:
+ *   6. [Content/text] grand total (polled) = total, or the sum of the rows' lineTotal when totalFrom = "lineTotals"
+ *   Spec: "Hiển thị danh sách sản phẩm với các cột: Sản phẩm, Đơn giá, Số lượng (có nút +/- để chỉnh), Thành tiền,
+ *   Thao tác" · "Thêm cùng một sản phẩm vào giỏ sẽ tăng số lượng, không tạo dòng mới" (traces of DT-02, DT-08,
+ *   BVA-09, AT-02).
+ *   Not asserted: the currency format (₫, separators), the row order, product images. Thành tiền = Đơn giá ×
+ *   Số lượng and grand total = sum of Thành tiền are derived from the column names, not quoted in the spec.
+ *
+ * overview – DT-01
+ *   1–6. all assertions of rows-and-totals
+ *   7. [Content/text] thead th texts = columns (Sản phẩm, Đơn giá, Số lượng, Thành tiền, Thao tác)
+ *   8. [Count]        exactly one "+" button in the row of quantityButtonsFor
+ *   9. [Count]        exactly one "−" button (−, - or –) in that row
+ *  10. [Visibility]   the label "Tổng cộng" is visible
+ *   Spec: "Hiển thị danh sách sản phẩm với các cột: Sản phẩm, Đơn giá, Số lượng (có nút +/- để chỉnh), Thành tiền,
+ *   Thao tác" · "Tổng tiền hiển thị nhãn chính xác: "Tổng cộng"".
+ *   Not asserted: that the +/- buttons change the quantity (DT-04, DT-05 do that).
+ *
+ * quantity-button – DT-04 (+ at quantity 1), DT-05 (− at quantity 2)
+ *   1. [Count]        exactly one button c.button in the row of c.product (hard: no click without it)
+ *   (click)
+ *   2. [Content/text] quantity after the click = quantityAfter (input value when the cell is an <input>)
+ *   3. [Content/text] Thành tiền after the click = lineTotalAfter
+ *   4. [Content/text] grand total after the click (polled) = totalAfter
+ *   Spec: "Số lượng (có nút +/- để chỉnh)".
+ *   Not asserted: "−" at quantity 1 (no such case in HW02; the spec says nothing about it), button styling.
+ *
+ * empty-cart – DT-07
+ *   1. [Visibility] a text matching /giỏ hàng … trống/i is visible
+ *   2. [Count]      no <table> in main
+ *   3. [Count]      at least one img or svg in main (toBeGreaterThan(0))
+ *   Spec: "Giỏ hàng trống phải có hình minh họa và thông báo rõ ràng".
+ *   Not asserted: the exact message wording ("rõ ràng" gives no text) and which picture is shown.
+ *
+ * remove-dialog – DT-09 (dismiss), DT-10 (accept)
+ *   1. [Dialog]       after clicking Xóa a native dialog fired or an element with role="dialog" exists
+ *   2. [Content/text] product names of the remaining rows = rowsAfter
+ *   3. [Content/text] grand total (polled) = totalAfter
+ *   Spec: "Nút Xóa sản phẩm phải có dialog xác nhận trước khi thực hiện".
+ *   Not asserted: the dialog message text (the spec gives none) and whether it is confirm() or an in-page modal.
+ *
+ * remove-to-empty – DT-11
+ *   1. [Dialog]     a confirmation was shown after clicking Xóa (answered with accept)
+ *   2. [Visibility] empty-cart message is visible
+ *   3. [Count]      no <table> in main
+ *   4. [Count]      at least one img or svg in main
+ *   Spec: "Nút Xóa sản phẩm phải có dialog xác nhận trước khi thực hiện" · "Giỏ hàng trống phải có hình minh họa
+ *   và thông báo rõ ràng".
+ *   Not asserted: the dialog text and the empty-cart wording (same reasons as remove-dialog and empty-cart).
+ *
+ * continue-shopping – DT-12
+ *   1. [Visibility]   a link or button named "Tiếp tục mua sắm" is visible (hard)
+ *   (click)
+ *   2. [URL]          the URL is the home page "/"
+ *   3. [Visibility]   the heading "Danh sách sản phẩm" is visible
+ *   (cart reopened through the header link)
+ *   4–9. all assertions of rows-and-totals (the cart is unchanged, HW02 DT-12 step 3)
+ *   Spec: "Có nút Tiếp tục mua sắm để quay về trang chủ".
+ *   Not asserted: whether the control is an <a> or a <button> (the spec only says "nút").
+ *
+ * labels – AT-01
+ *   1. [Content/text] thead th texts = columns
+ *   2. [Visibility]   the label "Tổng cộng" is visible
+ *   3. [Count]        no text "Tổng tạm tính" on the page
+ *   Spec: columns "Sản phẩm, Đơn giá, Số lượng, Thành tiền, Thao tác" · "Tổng cộng (không phải Tổng tạm tính)".
+ *   Not asserted: the grand total value (rows-and-totals cases cover it).
+ *
+ * Distinct assertion patterns in this spec (5, plus 1 conditional): URL, visibility, content/text, count, dialog;
+ * input value only when the Số lượng cell is an <input>. Data state via API is not used: the cart is React state.
+ */
 const { test, expect } = require('@playwright/test');
 const cases = require('../data/FR-07.json');
 const { tagRunBy, addFromHome, openCart, toNumber } = require('../helpers/common');
